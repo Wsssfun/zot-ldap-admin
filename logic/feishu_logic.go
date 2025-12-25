@@ -179,6 +179,26 @@ func (d FeiShuLogic) SyncFeiShuUsers(c *gin.Context, req any) (data any, rspErro
 
 // AddUser 添加用户数据
 func (d FeiShuLogic) AddUsers(user *model.User) error {
+	// 在写入MySQL/LDAP之前，进行用户数据验证和规范化
+	defaultEmailDomain := "hzxb.com"
+	if config.Conf.Ldap.DefaultEmailSuffix != "" {
+		defaultEmailDomain = config.Conf.Ldap.DefaultEmailSuffix
+	}
+	
+	// 用户名存在性检查函数
+	checkUsernameExists := func(username string) bool {
+		return isql.User.Exist(tools.H{"username": username})
+	}
+	
+	// 验证并规范化用户数据（用户名唯一性 + 邮箱清洗）
+	err := tools.ValidateAndNormalizeUser(user, defaultEmailDomain, checkUsernameExists)
+	if err != nil {
+		return tools.NewValidatorError(fmt.Errorf("用户数据验证失败:%s", err.Error()))
+	}
+	
+	// 记录数据规范化日志
+	common.Log.Infof("用户数据规范化完成: username=%s, mail=%s, mobile=%s", user.Username, user.Mail, user.Mobile)
+
 	// 根据角色id获取角色
 	roles, err := isql.Role.GetRolesByIds([]uint{2})
 	if err != nil {
