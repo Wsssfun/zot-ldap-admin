@@ -120,12 +120,34 @@ func ValidateAndNormalizeUser(user *model.User, defaultEmailDomain string, check
 
 	// 2. 规范化邮箱
 	originalEmail := user.Mail
-	normalizedEmail := NormalizeEmail(user.Mail, finalUsername, defaultEmailDomain)
-	if originalEmail != normalizedEmail {
-		// 记录日志：邮箱被修改
-		// common.Log.Infof("邮箱已规范化：%s -> %s (用户: %s)", originalEmail, normalizedEmail, finalUsername)
+	
+	// 如果用户名被修改了，或者邮箱包含特殊字符，需要强制使用新的username
+	needsEmailUpdate := modified
+	
+	// 检查邮箱是否包含需要清洗的字符
+	if originalEmail != "" {
+		parts := strings.Split(originalEmail, "@")
+		if len(parts) == 2 {
+			cleanedLocalPart := SanitizeEmailLocalPart(parts[0])
+			if cleanedLocalPart != parts[0] {
+				// 邮箱包含需要清洗的特殊字符
+				needsEmailUpdate = true
+			}
+		}
 	}
-	user.Mail = normalizedEmail
+	
+	// 如果需要更新邮箱，强制使用 finalUsername@defaultDomain
+	if needsEmailUpdate || originalEmail == "" {
+		user.Mail = fmt.Sprintf("%s@%s", finalUsername, defaultEmailDomain)
+		// common.Log.Infof("邮箱已强制更新：%s -> %s (用户: %s)", originalEmail, user.Mail, finalUsername)
+	} else {
+		// 否则，进行常规的邮箱规范化
+		normalizedEmail := NormalizeEmail(originalEmail, finalUsername, defaultEmailDomain)
+		user.Mail = normalizedEmail
+		// if originalEmail != normalizedEmail {
+		// 	common.Log.Infof("邮箱已规范化：%s -> %s (用户: %s)", originalEmail, normalizedEmail, finalUsername)
+		// }
+	}
 
 	return nil
 }
