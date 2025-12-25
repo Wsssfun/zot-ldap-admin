@@ -112,10 +112,6 @@ func GenerateUniqueUsername(baseUsername, phone string, checkExists func(string)
 func ValidateAndNormalizeUser(user *model.User, defaultEmailDomain string, checkExists func(string) bool) error {
 	// 1. 生成唯一用户名
 	finalUsername, modified := GenerateUniqueUsername(user.Username, user.Mobile, checkExists)
-	if modified {
-		// 记录日志：用户名被修改
-		// common.Log.Infof("用户名冲突，已修改：%s -> %s (手机号: %s)", user.Username, finalUsername, user.Mobile)
-	}
 	user.Username = finalUsername
 
 	// 2. 规范化邮箱
@@ -139,14 +135,10 @@ func ValidateAndNormalizeUser(user *model.User, defaultEmailDomain string, check
 	// 如果需要更新邮箱，强制使用 finalUsername@defaultDomain
 	if needsEmailUpdate || originalEmail == "" {
 		user.Mail = fmt.Sprintf("%s@%s", finalUsername, defaultEmailDomain)
-		// common.Log.Infof("邮箱已强制更新：%s -> %s (用户: %s)", originalEmail, user.Mail, finalUsername)
 	} else {
 		// 否则，进行常规的邮箱规范化
 		normalizedEmail := NormalizeEmail(originalEmail, finalUsername, defaultEmailDomain)
 		user.Mail = normalizedEmail
-		// if originalEmail != normalizedEmail {
-		// 	common.Log.Infof("邮箱已规范化：%s -> %s (用户: %s)", originalEmail, normalizedEmail, finalUsername)
-		// }
 	}
 
 	return nil
